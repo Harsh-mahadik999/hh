@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Results | College Voting System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #070d1a; color: white; }
+    .nav-bar { background: rgba(7,13,26,0.95); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+    .winner-card { background: linear-gradient(135deg, rgba(251,191,36,0.1), rgba(234,179,8,0.05)); border: 1px solid rgba(251,191,36,0.4); }
+    .bar-bg { background: rgba(255,255,255,0.08); }
+    .bar-fill-1 { background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+    .bar-fill-2 { background: linear-gradient(90deg, #10b981, #059669); }
+    .bar-fill-3 { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .bar-fill-4 { background: linear-gradient(90deg, #ef4444, #dc2626); }
+    .bar-fill-5 { background: linear-gradient(90deg, #ec4899, #db2777); }
+    .avatar-sm { background: linear-gradient(135deg, #3b82f6, #8b5cf6); }
+    .crown-badge { background: linear-gradient(135deg, #fbbf24, #f59e0b); }
+    @keyframes count-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .count-anim { animation: count-up 0.5s ease forwards; }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="nav-bar sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 bg-opacity-20 border border-blue-500 flex items-center justify-center">
+          <i class="fas fa-chart-bar text-blue-400 text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-white font-bold text-lg leading-none">Live Results</h1>
+          <p class="text-blue-400 text-xs">Student Council Election 2024</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="loadResults()" class="text-gray-400 hover:text-blue-400 transition-colors text-sm flex items-center gap-1">
+          <i class="fas fa-sync-alt" id="refreshIcon"></i>
+          <span class="hidden sm:inline">Refresh</span>
+        </button>
+        <a href="index.html" class="text-gray-400 hover:text-gray-300 transition-colors text-sm flex items-center gap-1">
+          <i class="fas fa-home"></i>
+          <span class="hidden sm:inline">Home</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="max-w-6xl mx-auto px-6 py-8">
+    <!-- Stats Banner -->
+    <div id="statsBanner" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+
+    <!-- Loading -->
+    <div id="loadingState" class="text-center py-20">
+      <i class="fas fa-spinner fa-spin text-blue-400 text-4xl mb-4"></i>
+      <p class="text-gray-400">Loading results...</p>
+    </div>
+
+    <!-- Content -->
+    <div id="resultsContent" class="hidden">
+      <!-- Overall Chart -->
+      <div class="card rounded-2xl p-6 mb-8">
+        <h2 class="text-lg font-bold text-white mb-4"><i class="fas fa-chart-pie text-blue-400 mr-2"></i>Total Votes by Position</h2>
+        <div style="height: 300px;"><canvas id="overallChart"></canvas></div>
+      </div>
+
+      <!-- Position Cards -->
+      <div id="positionCards" class="space-y-6"></div>
+    </div>
+  </main>
+
+  <script>
+    const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#06b6d4','#84cc16','#f97316','#a78bfa','#34d399','#fb7185'];
+
+    function getInitials(name) {
+      return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+    }
+
+    function formatPercent(votes, total) {
+      if (!total) return '0%';
+      return ((votes / total) * 100).toFixed(1) + '%';
+    }
+
+    function renderStatsBanner(candidates, settings) {
+      const totalVotes = candidates.reduce((a, c) => a + c.votes, 0);
+      const positions = [...new Set(candidates.map(c => c.position))];
+      const topCandidate = candidates[0];
+      const isActive = settings?.isVotingActive;
+
+      const stats = [
+        { icon: 'fa-ballot-check', value: totalVotes, label: 'Total Votes Cast', color: 'text-blue-400' },
+        { icon: 'fa-users', value: candidates.length, label: 'Total Candidates', color: 'text-green-400' },
+        { icon: 'fa-layer-group', value: positions.length, label: 'Positions', color: 'text-purple-400' },
+        { icon: isActive ? 'fa-circle' : 'fa-lock', value: isActive ? 'OPEN' : 'CLOSED', label: 'Voting Status', color: isActive ? 'text-green-400' : 'text-red-400' },
+      ];
+
+      document.getElementById('statsBanner').innerHTML = stats.map(s => `
+        <div class="card rounded-xl p-4 text-center">
+          <i class="fas ${s.icon} ${s.color} text-2xl mb-2"></i>
+          <div class="text-2xl font-bold text-white count-anim">${s.value}</div>
+          <div class="text-gray-400 text-xs mt-1">${s.label}</div>
+        </div>`).join('');
+    }
+
+    function renderPositionCard(position, candidates) {
+      const total = candidates.reduce((a, c) => a + c.votes, 0);
+      const sorted = [...candidates].sort((a, b) => b.votes - a.votes);
+      const winner = sorted[0];
+      const barColors = ['bar-fill-1','bar-fill-2','bar-fill-3','bar-fill-4','bar-fill-5'];
+
+      const candidateRows = sorted.map((c, i) => {
+        const pct = total > 0 ? (c.votes / total) * 100 : 0;
+        const isWinner = i === 0 && c.votes > 0;
+        return `
+          <div class="flex items-center gap-3 py-2">
+            <div class="avatar-sm w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+              ${getInitials(c.name)}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-medium text-white flex items-center gap-2 truncate">
+                  ${isWinner ? '<i class="fas fa-crown text-yellow-400 text-xs"></i>' : ''}
+                  ${c.name}
+                </span>
+                <span class="text-xs text-gray-400 ml-2 flex-shrink-0">${c.votes} votes (${formatPercent(c.votes, total)})</span>
+              </div>
+              <div class="bar-bg rounded-full h-2">
+                <div class="${barColors[i % barColors.length]} rounded-full h-2" style="width:${pct}%;transition:width 1.2s ease;"></div>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      const winnerDisplay = winner && winner.votes > 0 ? `
+        <div class="winner-card rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+          <i class="fas fa-crown text-yellow-400 text-lg"></i>
+          <div>
+            <div class="text-xs text-yellow-400 font-medium">Currently Leading</div>
+            <div class="text-white font-semibold">${winner.name}</div>
+          </div>
+          <div class="ml-auto text-right">
+            <div class="text-yellow-300 font-bold">${winner.votes}</div>
+            <div class="text-xs text-gray-400">${formatPercent(winner.votes, total)}</div>
+          </div>
+        </div>` : '';
+
+      return `
+        <div class="card rounded-2xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+              <i class="fas fa-user-tie text-blue-400"></i>${position}
+            </h3>
+            <span class="text-xs text-gray-400 bg-white bg-opacity-5 px-3 py-1 rounded-full">${total} total votes</span>
+          </div>
+          ${winnerDisplay}
+          <div class="divide-y divide-white divide-opacity-5">${candidateRows}</div>
+        </div>`;
+    }
+
+    let overallChartInstance = null;
+
+    function renderOverallChart(positions, groupedCandidates) {
+      const labels = positions.filter(p => (groupedCandidates[p] || []).length > 0);
+      const data = labels.map(p => (groupedCandidates[p] || []).reduce((a, c) => a + c.votes, 0));
+
+      if (overallChartInstance) overallChartInstance.destroy();
+
+      const ctx = document.getElementById('overallChart').getContext('2d');
+      overallChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels.map(l => l.length > 15 ? l.slice(0, 15) + '…' : l),
+          datasets: [{
+            label: 'Votes',
+            data,
+            backgroundColor: COLORS.slice(0, labels.length),
+            borderRadius: 6,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.raw} votes` } } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } }
+          }
+        }
+      });
+    }
+
+    async function loadResults() {
+      const icon = document.getElementById('refreshIcon');
+      icon.classList.add('fa-spin');
+      try {
+        const data = await fetch('/api/votes/results').then(r => r.json());
+        if (!data.success) throw new Error();
+
+        const candidates = data.candidates;
+        const settings = data.settings;
+
+        const positions = [...new Set(candidates.map(c => c.position))];
+        const groupedCandidates = {};
+        positions.forEach(p => { groupedCandidates[p] = candidates.filter(c => c.position === p); });
+
+        renderStatsBanner(candidates, settings);
+        renderOverallChart(positions, groupedCandidates);
+
+        document.getElementById('positionCards').innerHTML =
+          positions.map(p => renderPositionCard(p, groupedCandidates[p] || [])).join('');
+
+        document.getElementById('loadingState').classList.add('hidden');
+        document.getElementById('resultsContent').classList.remove('hidden');
+      } catch {
+        document.getElementById('loadingState').innerHTML =
+          `<i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-4"></i><p class="text-red-400">Failed to load results. Is the server running?</p>`;
+      }
+      icon.classList.remove('fa-spin');
+    }
+
+    loadResults();
+    // Auto-refresh every 30 seconds
+    setInterval(loadResults, 30000);
+  </script>
+</body>
+</html>

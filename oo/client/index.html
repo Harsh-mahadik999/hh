@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>College Voting System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    *{font-family:'Inter',sans-serif}
+    body{background:#070d1a;color:#fff;margin:0}
+    .view{display:none}
+    .view.active{display:block}
+    .view-admin.active{display:flex}
+
+    /* Toast */
+    #toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:500;transform:translateX(120%);transition:transform .4s;max-width:350px}
+    #toast.show{transform:translateX(0)}
+    .toast-success{background:rgba(16,185,129,.95);color:#fff}
+    .toast-error{background:rgba(239,68,68,.95);color:#fff}
+
+    /* Shared */
+    .input-field{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);color:#fff}
+    .input-field:focus{outline:none;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.2)}
+    .input-field::placeholder{color:rgba(255,255,255,.4)}
+    select.input-field option{background:#0f172a}
+
+    /* Login */
+    .login-bg{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f172a 100%);min-height:100vh}
+    .card-glass{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1)}
+    .tab-btn{transition:all .3s;border-bottom:2px solid transparent}
+    .tab-btn.active-student{border-bottom-color:#3b82f6;color:#60a5fa}
+    .tab-btn.active-admin{border-bottom-color:#8b5cf6;color:#a78bfa}
+    .tab-btn.active-results{border-bottom-color:#10b981;color:#34d399}
+    .btn-student{background:linear-gradient(135deg,#3b82f6,#1d4ed8);transition:all .3s}
+    .btn-student:hover{background:linear-gradient(135deg,#2563eb,#1e40af);transform:translateY(-1px);box-shadow:0 10px 30px rgba(59,130,246,.4)}
+    .btn-admin-login{background:linear-gradient(135deg,#7c3aed,#4f46e5);transition:all .3s}
+    .btn-admin-login:hover{background:linear-gradient(135deg,#6d28d9,#4338ca);transform:translateY(-1px);box-shadow:0 10px 30px rgba(124,58,237,.4)}
+    .alert-error{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.5);color:#fca5a5}
+    .alert-success{background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.5);color:#86efac}
+    .particle{position:fixed;border-radius:50%;animation:float 6s ease-in-out infinite;pointer-events:none;z-index:0}
+    @keyframes float{0%,100%{transform:translateY(0) rotate(0);opacity:.7}50%{transform:translateY(-20px) rotate(180deg);opacity:1}}
+
+    /* Results */
+    .res-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+    .winner-card{background:linear-gradient(135deg,rgba(251,191,36,.1),rgba(234,179,8,.05));border:1px solid rgba(251,191,36,.4)}
+    .bar-bg{background:rgba(255,255,255,.08)}
+    .bar-fill-1{background:linear-gradient(90deg,#3b82f6,#8b5cf6)}
+    .bar-fill-2{background:linear-gradient(90deg,#10b981,#059669)}
+    .bar-fill-3{background:linear-gradient(90deg,#f59e0b,#d97706)}
+    .bar-fill-4{background:linear-gradient(90deg,#ef4444,#dc2626)}
+    .bar-fill-5{background:linear-gradient(90deg,#ec4899,#db2777)}
+    .avatar-sm{background:linear-gradient(135deg,#3b82f6,#8b5cf6)}
+    @keyframes count-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    .count-anim{animation:count-up .5s ease forwards}
+
+    /* Voting */
+    .nav-bar{background:rgba(15,23,42,.95);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08)}
+    .section-card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}
+    .candidate-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);transition:all .3s;cursor:pointer}
+    .candidate-card:hover{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.4);transform:translateY(-2px)}
+    .candidate-card.selected{background:rgba(59,130,246,.2);border-color:#3b82f6;box-shadow:0 0 20px rgba(59,130,246,.3)}
+    .candidate-card.voted{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.5);cursor:default}
+    .candidate-card.voted:hover{transform:none}
+    .avatar{background:linear-gradient(135deg,#3b82f6,#8b5cf6)}
+    .btn-vote{background:linear-gradient(135deg,#3b82f6,#1d4ed8);transition:all .3s}
+    .btn-vote:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 20px rgba(59,130,246,.4)}
+    .btn-vote:disabled{opacity:.5;cursor:not-allowed}
+    .position-header{background:linear-gradient(135deg,rgba(59,130,246,.15),rgba(139,92,246,.1));border:1px solid rgba(59,130,246,.3)}
+    .badge-voted{background:rgba(34,197,94,.2);border:1px solid rgba(34,197,94,.5);color:#86efac}
+    .badge-pending{background:rgba(234,179,8,.2);border:1px solid rgba(234,179,8,.5);color:#fde047}
+    .progress-bar{background:rgba(255,255,255,.1)}
+    .progress-fill{background:linear-gradient(90deg,#3b82f6,#8b5cf6);transition:width 1s ease}
+    @keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}100%{box-shadow:0 0 0 10px rgba(59,130,246,0)}}
+    .pulse{animation:pulse-ring 1.5s ease-out infinite}
+
+    /* Admin */
+    .sidebar{background:rgba(10,17,30,.98);border-right:1px solid rgba(255,255,255,.07)}
+    .anav-item{transition:all .2s;color:#9ca3af}
+    .anav-item:hover,.anav-item.active{background:rgba(59,130,246,.1);color:#60a5fa;border-radius:10px}
+    .anav-item.active{border-left:3px solid #3b82f6}
+    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)}
+    .stat-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);transition:all .3s}
+    .stat-card:hover{border-color:rgba(59,130,246,.4);transform:translateY(-2px)}
+    .btn-primary{background:linear-gradient(135deg,#3b82f6,#1d4ed8);transition:all .3s}
+    .btn-primary:hover{background:linear-gradient(135deg,#2563eb,#1e40af)}
+    .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);transition:all .3s}
+    .btn-danger:hover{background:linear-gradient(135deg,#dc2626,#b91c1c)}
+    .btn-success{background:linear-gradient(135deg,#10b981,#059669);transition:all .3s}
+    .btn-success:hover{background:linear-gradient(135deg,#059669,#047857)}
+    .toggle-on{background:#3b82f6}
+    .toggle-off{background:rgba(255,255,255,.15)}
+    .atab{display:none}
+    .atab.active{display:block}
+    .badge-active{background:rgba(16,185,129,.2);color:#86efac;border:1px solid rgba(16,185,129,.4)}
+    .badge-inactive{background:rgba(239,68,68,.2);color:#fca5a5;border:1px solid rgba(239,68,68,.4)}
+    .leader-row{border:1px solid rgba(251,191,36,.2);background:rgba(251,191,36,.05)}
+    .mobile-overlay{display:none}
+    @media(max-width:768px){
+      .sidebar{position:fixed;left:-280px;top:0;height:100vh;width:240px;z-index:200;transition:left .3s}
+      .sidebar.open{left:0}
+      .mobile-overlay.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:199}
+    }
+  </style>
+</head>
+<body>
+<div id="toast"></div>
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  VIEW 1 — LOGIN (student / admin / live results)   ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<div id="view-login" class="view active login-bg">
+  <div class="particle w-2 h-2 bg-blue-400 opacity-60" style="top:10%;left:8%"></div>
+  <div class="particle w-3 h-3 bg-indigo-400 opacity-40" style="top:70%;left:88%;animation-delay:2s"></div>
+  <div class="particle w-2 h-2 bg-cyan-400 opacity-50" style="top:40%;left:3%;animation-delay:4s"></div>
+  <div class="particle w-4 h-4 bg-blue-300 opacity-30" style="top:85%;left:18%;animation-delay:1s"></div>
+  <div class="particle w-2 h-2 bg-purple-400 opacity-60" style="top:20%;left:92%;animation-delay:3s"></div>
+
+  <div class="relative z-10 min-h-screen flex flex-col">
+    <header class="sticky top-0 z-50" style="background:rgba(7,13,26,.9);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.08)">
+      <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-blue-600 bg-opacity-20 border border-blue-500 flex items-center justify-center">
+            <i class="fas fa-vote-yea text-blue-400 text-lg"></i>
+          </div>
+          <div><h1 class="text-white font-bold text-base leading-none">College Voting</h1><p class="text-blue-400 text-xs">Student Council Elections 2024</p></div>
+        </div>
+        <nav class="flex items-center gap-1">
+          <button onclick="switchLoginTab('student')" id="ltab-student" class="tab-btn active-student px-4 py-2 text-sm font-medium text-gray-400 flex items-center gap-2 rounded-t-lg"><i class="fas fa-user-graduate"></i><span class="hidden sm:inline">Student</span></button>
+          <button onclick="switchLoginTab('admin')" id="ltab-admin" class="tab-btn px-4 py-2 text-sm font-medium text-gray-400 flex items-center gap-2 rounded-t-lg"><i class="fas fa-shield-alt"></i><span class="hidden sm:inline">Admin</span></button>
+          <button onclick="switchLoginTab('results')" id="ltab-results" class="tab-btn px-4 py-2 text-sm font-medium text-gray-400 flex items-center gap-2 rounded-t-lg"><i class="fas fa-chart-bar"></i><span class="hidden sm:inline">Results</span></button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Student Login -->
+    <div id="lpanel-student" class="lpanel flex-1 flex items-center justify-center py-12 px-4">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-600 bg-opacity-20 border border-blue-500 mb-4"><i class="fas fa-user-graduate text-blue-400 text-3xl"></i></div>
+          <h2 class="text-3xl font-bold text-white mb-1">Student Login</h2>
+          <p class="text-blue-300 text-sm">Login with your Student ID to cast your vote</p>
+        </div>
+        <div class="card-glass rounded-2xl p-8 shadow-2xl">
+          <div id="sAlert" class="hidden rounded-lg px-4 py-3 mb-4 text-sm"></div>
+          <form id="studentForm" class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2"><i class="fas fa-id-card mr-2 text-blue-400"></i>Student ID</label>
+              <input type="text" id="sId" placeholder="e.g. AIML001" required class="input-field w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2"><i class="fas fa-lock mr-2 text-blue-400"></i>Password</label>
+              <div class="relative">
+                <input type="password" id="sPass" placeholder="Enter your password" required class="input-field w-full px-4 py-3 rounded-xl text-sm pr-12" />
+                <button type="button" onclick="togglePwd('sPass','sEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-400"><i id="sEye" class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <button type="submit" id="sBtn" class="btn-student w-full py-3 rounded-xl text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2"><i class="fas fa-sign-in-alt"></i><span>Login to Vote</span></button>
+          </form>
+          <div class="mt-5 pt-4 border-t border-white border-opacity-10">
+            <p class="text-xs text-gray-500 text-center mb-2">Demo credentials</p>
+            <div class="grid grid-cols-2 gap-2 text-xs text-gray-400">
+              <div class="bg-white bg-opacity-5 rounded-lg p-2 text-center"><span class="text-blue-300 font-mono">AIML001</span><br/>pass1234</div>
+              <div class="bg-white bg-opacity-5 rounded-lg p-2 text-center"><span class="text-blue-300 font-mono">COMPS001</span><br/>pass1234</div>
+              <div class="bg-white bg-opacity-5 rounded-lg p-2 text-center"><span class="text-blue-300 font-mono">IT001</span><br/>pass1234</div>
+              <div class="bg-white bg-opacity-5 rounded-lg p-2 text-center"><span class="text-blue-300 font-mono">DE001</span><br/>pass1234</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Login -->
+    <div id="lpanel-admin" class="lpanel hidden flex-1 items-center justify-center py-12 px-4">
+      <div class="w-full max-w-md">
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-purple-600 bg-opacity-20 border border-purple-500 mb-4"><i class="fas fa-shield-alt text-purple-400 text-3xl"></i></div>
+          <h2 class="text-3xl font-bold text-white mb-1">Admin Portal</h2>
+          <p class="text-purple-300 text-sm">Election Control Panel — Restricted Access</p>
+        </div>
+        <div class="card-glass rounded-2xl p-8 shadow-2xl">
+          <div id="aAlert" class="hidden rounded-lg px-4 py-3 mb-4 text-sm"></div>
+          <form id="adminForm" class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2"><i class="fas fa-user-shield mr-2 text-purple-400"></i>Admin Username</label>
+              <input type="text" id="aUser" placeholder="Enter admin username" required class="input-field w-full px-4 py-3 rounded-xl text-sm" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-2"><i class="fas fa-key mr-2 text-purple-400"></i>Password</label>
+              <div class="relative">
+                <input type="password" id="aPass" placeholder="Enter admin password" required class="input-field w-full px-4 py-3 rounded-xl text-sm pr-12" />
+                <button type="button" onclick="togglePwd('aPass','aEye')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-purple-400"><i id="aEye" class="fas fa-eye"></i></button>
+              </div>
+            </div>
+            <button type="submit" id="aBtn" class="btn-admin-login w-full py-3 rounded-xl text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2"><i class="fas fa-unlock-alt"></i><span>Access Dashboard</span></button>
+          </form>
+          <div class="mt-5 pt-4 border-t border-white border-opacity-10">
+            <p class="text-xs text-gray-500 text-center mb-2">Demo credentials</p>
+            <div class="bg-white bg-opacity-5 rounded-lg p-2 text-xs text-gray-400 text-center">Username: <span class="text-purple-300 font-mono">admin</span>&nbsp;&nbsp;Password: <span class="text-purple-300 font-mono">admin123</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Results -->
+    <div id="lpanel-results" class="lpanel hidden flex-1 py-8 px-4">
+      <div class="max-w-5xl mx-auto">
+        <div id="rStatsBanner" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+        <div id="rLoading" class="text-center py-20"><i class="fas fa-spinner fa-spin text-green-400 text-4xl mb-4"></i><p class="text-gray-400">Loading results...</p></div>
+        <div id="rContent" class="hidden space-y-6">
+          <div class="res-card rounded-2xl p-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-bold text-white"><i class="fas fa-chart-pie text-green-400 mr-2"></i>Votes by Position</h2>
+              <button onclick="loadPublicResults()" class="text-gray-400 hover:text-green-400 text-sm flex items-center gap-1"><i class="fas fa-sync-alt" id="rRefresh"></i><span class="ml-1">Refresh</span></button>
+            </div>
+            <div style="height:280px"><canvas id="rChart"></canvas></div>
+          </div>
+          <div id="rCards"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  VIEW 2 — VOTING                                    ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<div id="view-voting" class="view" style="background:#0a0f1e;min-height:100vh">
+  <nav class="nav-bar sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-blue-600 bg-opacity-20 border border-blue-500 flex items-center justify-center"><i class="fas fa-vote-yea text-blue-400 text-lg"></i></div>
+        <div><h1 class="text-white font-bold text-lg leading-none">VotePortal</h1><p class="text-blue-400 text-xs">Student Council 2024</p></div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="hidden sm:flex items-center gap-2 text-sm"><div id="vStatusDot" class="w-2 h-2 rounded-full bg-green-400 pulse"></div><span id="vStatusText" class="text-green-400 font-medium">Voting Active</span></div>
+        <div class="text-right hidden sm:block"><p id="vName" class="text-white text-sm font-medium"></p><p id="vBranch" class="text-gray-400 text-xs"></p></div>
+        <button onclick="studentLogout()" class="text-gray-400 hover:text-red-400 ml-2" title="Logout"><i class="fas fa-sign-out-alt text-lg"></i></button>
+      </div>
+    </div>
+  </nav>
+  <div class="max-w-6xl mx-auto px-6 py-4">
+    <div class="flex items-center justify-between mb-2"><span class="text-sm text-gray-400 font-medium">Voting Progress</span><span id="vProgress" class="text-sm text-blue-400 font-semibold">0 / 0</span></div>
+    <div class="progress-bar rounded-full h-2"><div id="vBar" class="progress-fill h-2 rounded-full" style="width:0%"></div></div>
+  </div>
+  <main class="max-w-6xl mx-auto px-6 pb-12">
+    <div id="vLoading" class="text-center py-20"><i class="fas fa-spinner fa-spin text-blue-400 text-4xl mb-4"></i><p class="text-gray-400">Loading candidates...</p></div>
+    <div id="vContent" class="hidden space-y-8"></div>
+    <div id="vClosed" class="hidden text-center py-20">
+      <i class="fas fa-lock text-red-400 text-4xl mb-4"></i><h2 class="text-xl font-semibold text-white mb-2">Voting is Closed</h2><p class="text-gray-400 mb-6">The voting period is not currently active.</p>
+      <button onclick="switchTo('login');switchLoginTab('results');loadPublicResults()" class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium"><i class="fas fa-chart-bar"></i>View Results</button>
+    </div>
+  </main>
+</div>
+
+<!-- ╔══════════════════════════════════════════════════════╗
+     ║  VIEW 3 — ADMIN DASHBOARD                           ║
+     ╚══════════════════════════════════════════════════════╝ -->
+<div id="view-admin" class="view view-admin" style="position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;z-index:50;background:#070d1a">
+  <div id="mobOverlay" class="mobile-overlay" onclick="closeSB()"></div>
+  <aside id="sidebar" class="sidebar w-60 flex-shrink-0 flex flex-col h-full overflow-y-auto">
+    <div class="px-5 py-6 border-b border-white border-opacity-5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-purple-700 bg-opacity-30 border border-purple-600 flex items-center justify-center"><i class="fas fa-shield-alt text-purple-400 text-lg"></i></div>
+        <div><h1 class="text-white font-bold text-base leading-none">Admin Panel</h1><p class="text-purple-400 text-xs mt-0.5">Election Control</p></div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <button onclick="adminTab('overview')" id="anav-overview" class="anav-item active w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-tachometer-alt w-4"></i>Overview</button>
+      <button onclick="adminTab('candidates')" id="anav-candidates" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-users w-4"></i>Candidates</button>
+      <button onclick="adminTab('students')" id="anav-students" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-user-graduate w-4"></i>Students</button>
+      <button onclick="adminTab('settings')" id="anav-settings" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-cog w-4"></i>Settings</button>
+      <button onclick="adminTab('aresults')" id="anav-aresults" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-chart-bar w-4"></i>Results</button>
+    </nav>
+    <div class="px-3 pb-4 space-y-1 border-t border-white border-opacity-5 pt-3">
+      <button onclick="switchTo('login');switchLoginTab('results');loadPublicResults()" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium"><i class="fas fa-chart-pie w-4"></i>Public Results</button>
+      <button onclick="adminLogout()" class="anav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium text-red-400 hover:text-red-300"><i class="fas fa-sign-out-alt w-4"></i>Logout</button>
+    </div>
+  </aside>
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <header class="flex-shrink-0 px-6 py-4 border-b border-white border-opacity-5 flex items-center justify-between" style="background:rgba(10,17,30,.95)">
+      <div class="flex items-center gap-3">
+        <button class="md:hidden text-gray-400 hover:text-white" onclick="openSB()"><i class="fas fa-bars text-lg"></i></button>
+        <div><h2 id="aTitle" class="text-white font-bold text-lg">Overview</h2><p id="aSub" class="text-gray-400 text-xs">Election dashboard & analytics</p></div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="aBadge" class="badge-inactive text-xs px-3 py-1.5 rounded-full font-semibold"><i class="fas fa-circle text-xs mr-1"></i>Loading...</div>
+        <button onclick="loadDash()" class="text-gray-400 hover:text-blue-400" title="Refresh"><i class="fas fa-sync-alt" id="aRefresh"></i></button>
+      </div>
+    </header>
+    <div class="flex-1 overflow-y-auto p-6">
+
+      <!-- Overview -->
+      <div id="atab-overview" class="atab active space-y-6">
+        <div id="aStatCards" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="card rounded-2xl p-5"><h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-chart-bar text-blue-400 mr-2"></i>Votes Per Position</h3><div style="height:260px"><canvas id="aBarChart"></canvas></div></div>
+          <div class="card rounded-2xl p-5"><h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-chart-pie text-purple-400 mr-2"></i>Leading Candidates</h3><div style="height:260px"><canvas id="aPieChart"></canvas></div></div>
+        </div>
+        <div class="card rounded-2xl p-5"><h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-crown text-yellow-400 mr-2"></i>Current Leaders</h3><div id="aLeaders" class="space-y-2"></div></div>
+      </div>
+
+      <!-- Candidates -->
+      <div id="atab-candidates" class="atab space-y-6">
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-user-plus text-green-400 mr-2"></i>Add Candidate</h3>
+          <form id="addCandForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="text-xs text-gray-400 block mb-1">Full Name *</label><input type="text" id="cName" placeholder="Candidate name" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Position *</label><select id="cPos" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm"><option value="">Select position</option></select></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Branch</label><select id="cBranch" class="input-field w-full px-3 py-2.5 rounded-lg text-sm"><option value="All">All Branches</option><option value="COMPS">COMPS</option><option value="IT">IT</option><option value="Data Engineering">Data Engineering</option><option value="AIML">AIML</option></select></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Description</label><input type="text" id="cDesc" placeholder="Brief description" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            <div class="sm:col-span-2 flex justify-end"><button type="submit" class="btn-success px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2"><i class="fas fa-plus"></i>Add Candidate</button></div>
+          </form>
+        </div>
+        <div class="card rounded-2xl p-5"><h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-list text-blue-400 mr-2"></i>All Candidates</h3><div id="aCandList" class="space-y-2"></div></div>
+      </div>
+
+      <!-- Students -->
+      <div id="atab-students" class="atab space-y-6">
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-user-plus text-green-400 mr-2"></i>Add Student</h3>
+          <form id="addStudForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><label class="text-xs text-gray-400 block mb-1">Student ID *</label><input type="text" id="asId" placeholder="e.g. AIML001" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Full Name *</label><input type="text" id="asName" placeholder="Student name" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Branch *</label><select id="asBranch" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm"><option value="">Select branch</option><option value="COMPS">COMPS</option><option value="IT">IT</option><option value="Data Engineering">Data Engineering</option><option value="AIML">AIML</option></select></div>
+            <div><label class="text-xs text-gray-400 block mb-1">Password *</label><input type="text" id="asPass" placeholder="Default password" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            <div class="sm:col-span-2 flex justify-end"><button type="submit" class="btn-primary px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2"><i class="fas fa-user-plus"></i>Add Student</button></div>
+          </form>
+        </div>
+        <div class="card rounded-2xl p-5"><h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-users text-blue-400 mr-2"></i>All Students</h3><div id="aStudList"></div></div>
+      </div>
+
+      <!-- Settings -->
+      <div id="atab-settings" class="atab space-y-6">
+        <div class="card rounded-2xl p-6">
+          <h3 class="text-sm font-semibold text-gray-300 mb-6"><i class="fas fa-sliders-h text-blue-400 mr-2"></i>Election Settings</h3>
+          <div class="space-y-5">
+            <div class="flex items-center justify-between py-3 border-b border-white border-opacity-5">
+              <div><h4 class="text-white font-medium text-sm">Voting Status</h4><p class="text-gray-400 text-xs mt-0.5">Enable or disable voting</p></div>
+              <button id="aToggle" onclick="toggleVoting()" class="toggle-off w-12 h-6 rounded-full transition-all relative"><div id="aToggleDot" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 transition-all shadow"></div></button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div><label class="text-xs text-gray-400 block mb-2">Voting Start Time</label><input type="datetime-local" id="aStart" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+              <div><label class="text-xs text-gray-400 block mb-2">Voting End Time</label><input type="datetime-local" id="aEnd" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" /></div>
+            </div>
+            <button onclick="saveTime()" class="btn-primary px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2"><i class="fas fa-save"></i>Save Time Settings</button>
+            <div class="border border-red-900 border-opacity-50 rounded-xl p-4 mt-6">
+              <h4 class="text-red-400 font-semibold text-sm mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Danger Zone</h4>
+              <p class="text-gray-400 text-xs mb-4">Delete all votes and reset counts. Cannot be undone.</p>
+              <button onclick="resetVotes()" class="btn-danger px-5 py-2 rounded-lg text-white text-sm font-semibold flex items-center gap-2"><i class="fas fa-trash-alt"></i>Reset All Votes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Results -->
+      <div id="atab-aresults" class="atab"><div id="aFullRes" class="space-y-4"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API='/api';
+const COLORS=['#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#06b6d4','#84cc16','#f97316','#a78bfa','#34d399','#fb7185'];
+
+/* ── View switching ── */
+function switchTo(v){
+  document.querySelectorAll('.view').forEach(el=>{el.classList.remove('active')});
+  document.getElementById('view-'+v).classList.add('active');
+}
+
+window.addEventListener('load',()=>{
+  if(localStorage.getItem('adminToken')){switchTo('admin');loadDash()}
+  else if(localStorage.getItem('token')&&localStorage.getItem('student')){switchTo('voting');initVoting()}
+  else switchTo('login');
+});
+
+/* ── Shared ── */
+function toast(m,t='success'){const el=document.getElementById('toast');el.className=`toast-${t} show`;el.innerHTML=`<i class="fas fa-${t==='success'?'check-circle':'times-circle'} mr-2"></i>${m}`;setTimeout(()=>{el.className=''},3500)}
+function togglePwd(a,b){const i=document.getElementById(a),c=document.getElementById(b);i.type=i.type==='password'?'text':'password';c.classList.toggle('fa-eye');c.classList.toggle('fa-eye-slash')}
+function showAlert(id,msg,t='error'){const b=document.getElementById(id);b.className=`rounded-lg px-4 py-3 mb-4 text-sm alert-${t}`;b.innerHTML=`<i class="fas fa-${t==='error'?'exclamation-circle':'check-circle'} mr-2"></i>${msg}`;b.classList.remove('hidden')}
+function initials(n){return n.split(' ').map(x=>x[0]).join('').slice(0,2).toUpperCase()}
+function pct(v,t){return t?((v/t)*100).toFixed(1)+'%':'0%'}
+
+/* ── Login tabs ── */
+function switchLoginTab(n){
+  ['student','admin','results'].forEach(t=>{
+    const p=document.getElementById('lpanel-'+t),b=document.getElementById('ltab-'+t);
+    if(t===n){p.classList.remove('hidden');p.classList.add('flex');b.classList.add('active-'+t)}
+    else{p.classList.add('hidden');p.classList.remove('flex');b.classList.remove('active-student','active-admin','active-results')}
+  });
+  if(n==='results')loadPublicResults();
+}
+
+/* Student login */
+document.getElementById('studentForm').addEventListener('submit',async e=>{
+  e.preventDefault();const btn=document.getElementById('sBtn');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Logging in...';
+  try{
+    const r=await fetch('/api/auth/student-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({studentId:document.getElementById('sId').value.trim(),password:document.getElementById('sPass').value})});
+    const d=await r.json();
+    if(d.success){localStorage.setItem('token',d.token);localStorage.setItem('student',JSON.stringify(d.student));showAlert('sAlert','Login successful!','success');setTimeout(()=>{switchTo('voting');initVoting()},600)}
+    else{showAlert('sAlert',d.message||'Login failed');btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i><span>Login to Vote</span>'}
+  }catch{showAlert('sAlert','Network error');btn.disabled=false;btn.innerHTML='<i class="fas fa-sign-in-alt"></i><span>Login to Vote</span>'}
+});
+
+/* Admin login */
+document.getElementById('adminForm').addEventListener('submit',async e=>{
+  e.preventDefault();const btn=document.getElementById('aBtn');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Logging in...';
+  try{
+    const r=await fetch('/api/auth/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('aUser').value.trim(),password:document.getElementById('aPass').value})});
+    const d=await r.json();
+    if(d.success){localStorage.setItem('adminToken',d.token);localStorage.setItem('admin',JSON.stringify(d.admin));showAlert('aAlert','Login successful!','success');setTimeout(()=>{switchTo('admin');loadDash()},600)}
+    else{showAlert('aAlert',d.message||'Login failed');btn.disabled=false;btn.innerHTML='<i class="fas fa-unlock-alt"></i><span>Access Dashboard</span>'}
+  }catch{showAlert('aAlert','Network error');btn.disabled=false;btn.innerHTML='<i class="fas fa-unlock-alt"></i><span>Access Dashboard</span>'}
+});
+
+/* ── Public results ── */
+let rChartInst=null;
+function renderRBanner(cands,settings){
+  const tv=cands.reduce((a,c)=>a+c.votes,0),pos=[...new Set(cands.map(c=>c.position))],on=settings?.isVotingActive;
+  document.getElementById('rStatsBanner').innerHTML=[
+    {i:'fa-ballot-check',v:tv,l:'Total Votes',cl:'text-blue-400'},{i:'fa-users',v:cands.length,l:'Candidates',cl:'text-green-400'},
+    {i:'fa-layer-group',v:pos.length,l:'Positions',cl:'text-purple-400'},{i:on?'fa-circle':'fa-lock',v:on?'OPEN':'CLOSED',l:'Status',cl:on?'text-green-400':'text-red-400'}
+  ].map(s=>`<div class="res-card rounded-xl p-4 text-center"><i class="fas ${s.i} ${s.cl} text-2xl mb-2"></i><div class="text-2xl font-bold text-white count-anim">${s.v}</div><div class="text-gray-400 text-xs mt-1">${s.l}</div></div>`).join('');
+}
+function renderRCard(pos,cands){
+  const total=cands.reduce((a,c)=>a+c.votes,0),sorted=[...cands].sort((a,b)=>b.votes-a.votes),w=sorted[0],bars=['bar-fill-1','bar-fill-2','bar-fill-3','bar-fill-4','bar-fill-5'];
+  const rows=sorted.map((c,i)=>{const p=total>0?(c.votes/total)*100:0;return`<div class="flex items-center gap-3 py-2"><div class="avatar-sm w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">${initials(c.name)}</div><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><span class="text-sm font-medium text-white flex items-center gap-2 truncate">${i===0&&c.votes>0?'<i class="fas fa-crown text-yellow-400 text-xs"></i>':''}${c.name}</span><span class="text-xs text-gray-400 ml-2 flex-shrink-0">${c.votes} (${pct(c.votes,total)})</span></div><div class="bar-bg rounded-full h-2"><div class="${bars[i%bars.length]} rounded-full h-2" style="width:${p}%;transition:width 1.2s"></div></div></div></div>`}).join('');
+  const wb=w&&w.votes>0?`<div class="winner-card rounded-xl px-4 py-3 mb-4 flex items-center gap-3"><i class="fas fa-crown text-yellow-400 text-lg"></i><div><div class="text-xs text-yellow-400 font-medium">Leading</div><div class="text-white font-semibold">${w.name}</div></div><div class="ml-auto text-right"><div class="text-yellow-300 font-bold">${w.votes}</div><div class="text-xs text-gray-400">${pct(w.votes,total)}</div></div></div>`:'';
+  return`<div class="res-card rounded-2xl p-6"><div class="flex items-center justify-between mb-4"><h3 class="text-base font-bold text-white flex items-center gap-2"><i class="fas fa-user-tie text-blue-400"></i>${pos}</h3><span class="text-xs text-gray-400 bg-white bg-opacity-5 px-3 py-1 rounded-full">${total} votes</span></div>${wb}<div class="divide-y divide-white divide-opacity-5">${rows}</div></div>`;
+}
+async function loadPublicResults(){
+  const ref=document.getElementById('rRefresh');if(ref)ref.classList.add('fa-spin');
+  try{
+    const d=await fetch('/api/votes/results').then(r=>r.json());if(!d.success)throw 0;
+    const c=d.candidates,s=d.settings,pos=[...new Set(c.map(x=>x.position))],g={};pos.forEach(p=>{g[p]=c.filter(x=>x.position===p)});
+    renderRBanner(c,s);
+    if(rChartInst)rChartInst.destroy();
+    rChartInst=new Chart(document.getElementById('rChart'),{type:'bar',data:{labels:pos.map(l=>l.length>15?l.slice(0,15)+'…':l),datasets:[{label:'Votes',data:pos.map(p=>(g[p]||[]).reduce((a,x)=>a+x.votes,0)),backgroundColor:COLORS,borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#9ca3af',font:{size:11}}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#9ca3af',stepSize:1}}}}});
+    document.getElementById('rCards').innerHTML=pos.map(p=>renderRCard(p,g[p]||[])).join('');
+    document.getElementById('rLoading').classList.add('hidden');document.getElementById('rContent').classList.remove('hidden');
+  }catch{document.getElementById('rLoading').innerHTML='<i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-4"></i><p class="text-red-400">Failed to load results.</p>'}
+  if(ref)ref.classList.remove('fa-spin');
+}
+setInterval(()=>{if(!document.getElementById('lpanel-results').classList.contains('hidden'))loadPublicResults()},30000);
+
+/* ── Voting ── */
+let vStu=null,vSel={},vVoted=new Set(),vPos=[],vGrp={};
+function studentLogout(){localStorage.removeItem('token');localStorage.removeItem('student');switchTo('login');switchLoginTab('student')}
+function updateProg(){const t=vPos.length,v=vVoted.size;document.getElementById('vProgress').textContent=`${v} / ${t} positions voted`;document.getElementById('vBar').style.width=(t?v/t*100:0)+'%'}
+function renderVSec(pos,cands){
+  const voted=vVoted.has(pos),sel=vSel[pos];
+  const cards=cands.map(c=>{const s=sel===c._id;const cls=voted?'candidate-card voted':s?'candidate-card selected':'candidate-card';
+    const chk=voted?'<div class="absolute top-3 right-3 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"><i class="fas fa-check text-white text-xs"></i></div>':s?'<div class="absolute top-3 right-3 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"><i class="fas fa-circle text-white text-xs"></i></div>':'';
+    return`<div class="${cls} rounded-xl p-4 relative" onclick="${voted?'':`vPick('${pos}','${c._id}')`}">${chk}<div class="flex items-center gap-3"><div class="avatar w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">${initials(c.name)}</div><div class="flex-1 min-w-0"><h4 class="text-white font-semibold text-sm truncate">${c.name}</h4><p class="text-gray-400 text-xs">${c.branch!=='All'?c.branch:'All Branches'}</p>${c.description?`<p class="text-gray-500 text-xs mt-1 line-clamp-2">${c.description}</p>`:''}</div></div></div>`}).join('');
+  const badge=voted?'<span class="badge-voted text-xs px-2 py-0.5 rounded-full font-medium"><i class="fas fa-check mr-1"></i>Voted</span>':'<span class="badge-pending text-xs px-2 py-0.5 rounded-full font-medium"><i class="fas fa-clock mr-1"></i>Pending</span>';
+  const vBtn=voted?'<button disabled class="btn-vote text-white text-xs font-semibold px-4 py-2 rounded-lg opacity-50 cursor-not-allowed"><i class="fas fa-check mr-1"></i>Vote Cast</button>':`<button onclick="vCast('${pos}')" id="vb-${CSS.escape(pos)}" class="btn-vote text-white text-xs font-semibold px-4 py-2 rounded-lg ${sel?'':'opacity-50 cursor-not-allowed'}" ${sel?'':'disabled'}><i class="fas fa-paper-plane mr-1"></i>Cast Vote</button>`;
+  return`<div class="section-card rounded-2xl p-6" id="vs-${CSS.escape(pos)}"><div class="position-header rounded-xl px-5 py-3 mb-5 flex items-center justify-between flex-wrap gap-3"><div class="flex items-center gap-3"><i class="fas fa-user-tie text-blue-400 text-lg"></i><h3 class="text-white font-bold text-base">${pos}</h3></div><div class="flex items-center gap-3">${badge}${vBtn}</div></div><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">${cards||'<p class="text-gray-500 text-sm col-span-3 text-center py-4">No candidates.</p>'}</div></div>`;
+}
+function vPick(pos,cid){if(vVoted.has(pos))return;vSel[pos]=cid;const s=document.getElementById('vs-'+CSS.escape(pos));if(s)s.outerHTML=renderVSec(pos,vGrp[pos])}
+async function vCast(pos){
+  const cid=vSel[pos];if(!cid)return;const btn=document.getElementById('vb-'+CSS.escape(pos));if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-1"></i>Submitting...'}
+  try{const r=await fetch(API+'/votes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},body:JSON.stringify({candidateId:cid,position:pos})});const d=await r.json();
+    if(d.success){vVoted.add(pos);vStu.votedPositions=[...vVoted];localStorage.setItem('student',JSON.stringify(vStu));toast('Vote cast for '+pos);updateProg();const s=document.getElementById('vs-'+CSS.escape(pos));if(s)s.outerHTML=renderVSec(pos,vGrp[pos])}
+    else{toast(d.message||'Failed','error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane mr-1"></i>Cast Vote'}}
+  }catch{toast('Network error','error');if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane mr-1"></i>Cast Vote'}}
+}
+async function initVoting(){
+  const tk=localStorage.getItem('token'),sd=localStorage.getItem('student');if(!tk||!sd){switchTo('login');return}
+  vStu=JSON.parse(sd);vSel={};vVoted=new Set(vStu.votedPositions||[]);
+  document.getElementById('vName').textContent=vStu.name;document.getElementById('vBranch').textContent=vStu.branch+' • '+vStu.studentId;
+  document.getElementById('vLoading').classList.remove('hidden');document.getElementById('vContent').classList.add('hidden');document.getElementById('vClosed').classList.add('hidden');
+  try{
+    const[sr,cr]=await Promise.all([fetch(API+'/votes/public-settings'),fetch(API+'/candidates')]);
+    const sd2=await sr.json().catch(()=>({})),cd=await cr.json();if(!cd.success)throw 0;
+    if(sd2.settings&&!sd2.settings.isVotingActive){document.getElementById('vLoading').classList.add('hidden');document.getElementById('vClosed').classList.remove('hidden');document.getElementById('vStatusDot').className='w-2 h-2 rounded-full bg-red-400';document.getElementById('vStatusText').textContent='Voting Closed';document.getElementById('vStatusText').className='text-red-400 font-medium';return}
+    vGrp=cd.grouped;vPos=cd.positions;updateProg();
+    document.getElementById('vContent').innerHTML=vPos.map(p=>renderVSec(p,vGrp[p]||[])).join('');
+    document.getElementById('vLoading').classList.add('hidden');document.getElementById('vContent').classList.remove('hidden');
+  }catch{document.getElementById('vLoading').innerHTML='<i class="fas fa-exclamation-triangle text-red-400 text-4xl mb-4"></i><p class="text-red-400">Failed to load.</p>'}
+}
+
+/* ── Admin ── */
+let adSettings=null,barCI=null,pieCI=null;
+function ath(){return{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('adminToken')}}
+function adminLogout(){localStorage.removeItem('adminToken');localStorage.removeItem('admin');switchTo('login');switchLoginTab('student')}
+function openSB(){document.getElementById('sidebar').classList.add('open');document.getElementById('mobOverlay').classList.add('show')}
+function closeSB(){document.getElementById('sidebar').classList.remove('open');document.getElementById('mobOverlay').classList.remove('show')}
+const tabMeta={overview:['Overview','Election dashboard & analytics'],candidates:['Candidates','Manage election candidates'],students:['Students','Manage registered voters'],settings:['Settings','Election configuration'],aresults:['Full Results','Detailed vote breakdown']};
+function adminTab(n){document.querySelectorAll('.atab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.anav-item').forEach(x=>x.classList.remove('active'));document.getElementById('atab-'+n).classList.add('active');document.getElementById('anav-'+n).classList.add('active');const[t,s]=tabMeta[n];document.getElementById('aTitle').textContent=t;document.getElementById('aSub').textContent=s;closeSB();if(n==='candidates')loadCands();if(n==='students')loadStuds();if(n==='aresults')loadARes()}
+async function loadDash(){
+  document.getElementById('aRefresh').classList.add('fa-spin');
+  try{const d=await fetch(API+'/admin/stats',{headers:ath()}).then(r=>r.json());if(!d.success){adminLogout();return}
+    const s=d.stats;adSettings=s.settings;updateAdStatus(s.settings);renderSCards(s);renderACharts(s);renderLeaders(s.leaders,s.votesByPosition);
+  }catch{toast('Failed to load dashboard','error')}
+  document.getElementById('aRefresh').classList.remove('fa-spin');
+}
+function updateAdStatus(s){
+  if(!s)return;const b=document.getElementById('aBadge'),tg=document.getElementById('aToggle'),dt=document.getElementById('aToggleDot');
+  if(s.isVotingActive){b.className='badge-active text-xs px-3 py-1.5 rounded-full font-semibold';b.innerHTML='<i class="fas fa-circle text-xs mr-1"></i>Voting Active';tg.classList.replace('toggle-off','toggle-on');dt.style.left='26px'}
+  else{b.className='badge-inactive text-xs px-3 py-1.5 rounded-full font-semibold';b.innerHTML='<i class="fas fa-circle text-xs mr-1"></i>Voting Closed';tg.classList.replace('toggle-on','toggle-off');dt.style.left='2px'}
+  if(s.votingStartTime)document.getElementById('aStart').value=new Date(s.votingStartTime).toISOString().slice(0,16);
+  if(s.votingEndTime)document.getElementById('aEnd').value=new Date(s.votingEndTime).toISOString().slice(0,16);
+}
+function renderSCards(s){
+  document.getElementById('aStatCards').innerHTML=[
+    {i:'fa-user-graduate',v:s.totalStudents,l:'Total Students',cl:'text-blue-400',bg:'bg-blue-600'},
+    {i:'fa-check-double',v:s.votedStudents,l:'Students Voted',cl:'text-green-400',bg:'bg-green-600'},
+    {i:'fa-percent',v:s.participationRate+'%',l:'Participation',cl:'text-yellow-400',bg:'bg-yellow-600'},
+    {i:'fa-ballot-check',v:s.totalVotes,l:'Total Votes',cl:'text-purple-400',bg:'bg-purple-600'}
+  ].map(c=>`<div class="stat-card rounded-xl p-4"><div class="flex items-center gap-3 mb-2"><div class="w-9 h-9 ${c.bg} bg-opacity-20 rounded-lg flex items-center justify-center"><i class="fas ${c.i} ${c.cl}"></i></div></div><div class="text-2xl font-bold text-white">${c.v}</div><div class="text-xs text-gray-400 mt-1">${c.l}</div></div>`).join('');
+}
+function renderACharts(s){
+  const pos=Object.keys(s.votesByPosition),bd=pos.map(p=>s.votesByPosition[p].totalVotes),sl=pos.map(p=>p.length>12?p.slice(0,12)+'…':p);
+  if(barCI)barCI.destroy();barCI=new Chart(document.getElementById('aBarChart'),{type:'bar',data:{labels:sl,datasets:[{label:'Votes',data:bd,backgroundColor:COLORS,borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#9ca3af',font:{size:10}}},y:{beginAtZero:true,grid:{color:'rgba(255,255,255,.05)'},ticks:{color:'#9ca3af',stepSize:1}}}}});
+  const tc=s.candidates.filter(c=>c.votes>0).slice(0,8);
+  if(pieCI)pieCI.destroy();pieCI=new Chart(document.getElementById('aPieChart'),{type:'doughnut',data:{labels:tc.map(c=>c.name),datasets:[{data:tc.map(c=>c.votes),backgroundColor:COLORS.slice(0,tc.length),borderWidth:2,borderColor:'#070d1a'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#9ca3af',font:{size:10},boxWidth:12}},tooltip:{callbacks:{label:x=>` ${x.label}: ${x.raw} votes`}}}}});
+}
+function renderLeaders(ld,vbp){
+  document.getElementById('aLeaders').innerHTML=Object.entries(ld).map(([p,l])=>{const t=vbp[p]?.totalVotes||0;if(!l)return`<div class="flex items-center justify-between py-2 px-3 rounded-lg" style="background:rgba(255,255,255,.03)"><span class="text-gray-400 text-sm">${p}</span><span class="text-gray-600 text-xs">No candidates</span></div>`;return`<div class="leader-row flex items-center justify-between py-2.5 px-4 rounded-lg"><div class="flex items-center gap-3"><i class="fas fa-crown text-yellow-400 text-sm"></i><div><span class="text-white text-sm font-medium">${l.name}</span><span class="text-gray-500 text-xs ml-2">${p}</span></div></div><div class="text-right"><span class="text-yellow-300 font-bold text-sm">${l.votes}</span><span class="text-gray-500 text-xs ml-1">/ ${t}</span></div></div>`}).join('');
+}
+async function loadCands(){
+  try{const d=await fetch(API+'/candidates').then(r=>r.json());if(!d.success)return;
+    document.getElementById('cPos').innerHTML='<option value="">Select position</option>'+d.positions.map(p=>`<option value="${p}">${p}</option>`).join('');
+    let h='';for(const p of d.positions){const c=d.grouped[p]||[];if(!c.length)continue;h+=`<div class="mb-3"><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2 px-1">${p}</div><div class="space-y-1">${c.map(x=>`<div class="flex items-center justify-between rounded-lg px-4 py-2.5" style="background:rgba(255,255,255,.03)"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6)">${initials(x.name)}</div><div><div class="text-sm text-white font-medium">${x.name}</div><div class="text-xs text-gray-500">${x.branch} &bull; ${x.votes} votes</div></div></div><button onclick="delCand('${x._id}','${x.name.replace(/'/g,"\\'")}')" class="text-red-400 hover:text-red-300 text-sm px-2"><i class="fas fa-trash"></i></button></div>`).join('')}</div></div>`}
+    document.getElementById('aCandList').innerHTML=h||'<p class="text-gray-500 text-sm text-center py-6">No candidates.</p>';
+  }catch{toast('Failed to load candidates','error')}
+}
+document.getElementById('addCandForm').addEventListener('submit',async e=>{
+  e.preventDefault();const b={name:document.getElementById('cName').value.trim(),position:document.getElementById('cPos').value,branch:document.getElementById('cBranch').value,description:document.getElementById('cDesc').value.trim()};
+  try{const d=await fetch(API+'/candidates',{method:'POST',headers:ath(),body:JSON.stringify(b)}).then(r=>r.json());if(d.success){toast('Candidate added!');e.target.reset();loadCands()}else toast(d.message||'Failed','error')}catch{toast('Network error','error')}
+});
+async function delCand(id,nm){if(!confirm('Delete "'+nm+'"?'))return;try{const d=await fetch(API+'/candidates/'+id,{method:'DELETE',headers:ath()}).then(r=>r.json());if(d.success){toast('Deleted');loadCands()}else toast(d.message,'error')}catch{toast('Network error','error')}}
+
+async function loadStuds(){
+  try{const d=await fetch(API+'/admin/students',{headers:ath()}).then(r=>r.json());if(!d.success)return;
+    document.getElementById('aStudList').innerHTML=d.students.map(s=>`<div class="flex items-center justify-between rounded-lg px-4 py-2.5" style="background:rgba(255,255,255,.03)"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full flex items-center justify-center text-blue-300 text-xs font-bold" style="background:rgba(29,78,216,.3)">${initials(s.name)}</div><div><div class="text-sm text-white font-medium">${s.name}</div><div class="text-xs text-gray-500">${s.studentId} &bull; ${s.branch}</div></div></div><div class="text-xs ${s.votedPositions.length>0?'text-green-400':'text-gray-500'}">${s.votedPositions.length} voted</div></div>`).join('')||'<p class="text-gray-500 text-sm text-center py-6">No students.</p>';
+  }catch{toast('Failed','error')}
+}
+document.getElementById('addStudForm').addEventListener('submit',async e=>{
+  e.preventDefault();const b={studentId:document.getElementById('asId').value.trim(),name:document.getElementById('asName').value.trim(),branch:document.getElementById('asBranch').value,password:document.getElementById('asPass').value};
+  try{const d=await fetch(API+'/admin/students',{method:'POST',headers:ath(),body:JSON.stringify(b)}).then(r=>r.json());if(d.success){toast('Student added!');e.target.reset();loadStuds()}else toast(d.message||'Failed','error')}catch{toast('Network error','error')}
+});
+
+async function toggleVoting(){if(!adSettings)return;const nv=!adSettings.isVotingActive;try{const d=await fetch(API+'/admin/settings',{method:'PUT',headers:ath(),body:JSON.stringify({isVotingActive:nv})}).then(r=>r.json());if(d.success){adSettings.isVotingActive=nv;updateAdStatus(adSettings);toast('Voting '+(nv?'enabled':'disabled'))}else toast(d.message,'error')}catch{toast('Network error','error')}}
+async function saveTime(){try{const d=await fetch(API+'/admin/settings',{method:'PUT',headers:ath(),body:JSON.stringify({votingStartTime:document.getElementById('aStart').value,votingEndTime:document.getElementById('aEnd').value})}).then(r=>r.json());if(d.success)toast('Time settings saved!');else toast(d.message,'error')}catch{toast('Network error','error')}}
+async function resetVotes(){if(!confirm('⚠️ Delete ALL votes? Cannot be undone.'))return;if(!confirm('Final confirmation?'))return;try{const d=await fetch(API+'/admin/reset-votes',{method:'POST',headers:ath()}).then(r=>r.json());if(d.success){toast('All votes reset');loadDash()}else toast(d.message,'error')}catch{toast('Network error','error')}}
+async function loadARes(){
+  try{const d=await fetch(API+'/votes/results').then(r=>r.json());if(!d.success)return;
+    const c=d.candidates,pos=[...new Set(c.map(x=>x.position))];
+    document.getElementById('aFullRes').innerHTML=pos.map(p=>{const cs=c.filter(x=>x.position===p).sort((a,b)=>b.votes-a.votes),t=cs.reduce((a,x)=>a+x.votes,0);return`<div class="card rounded-xl p-4"><h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2"><i class="fas fa-user-tie text-blue-400"></i>${p}<span class="text-gray-500 text-xs font-normal">(${t} votes)</span></h3>${cs.map((x,i)=>{const pc=t>0?((x.votes/t)*100).toFixed(1):0;return`<div class="flex items-center gap-3 mb-2">${i===0&&x.votes>0?'<i class="fas fa-crown text-yellow-400 text-xs w-4"></i>':'<span class="w-4 text-gray-600 text-xs text-center">'+(i+1)+'</span>'}<span class="text-gray-300 text-sm flex-1 truncate">${x.name}</span><div class="w-28 rounded-full h-1.5 mx-2" style="background:rgba(255,255,255,.08)"><div class="h-1.5 rounded-full" style="width:${pc}%;background:${COLORS[i%COLORS.length]}"></div></div><span class="text-xs text-gray-400 w-16 text-right">${x.votes} (${pc}%)</span></div>`}).join('')}</div>`}).join('');
+  }catch{toast('Failed to load results','error')}
+}
+setInterval(()=>{if(document.getElementById('view-admin').classList.contains('active')){const a=document.querySelector('.atab.active');if(a&&a.id==='atab-overview')loadDash()}},30000);
+</script>
+</body>
+</html>

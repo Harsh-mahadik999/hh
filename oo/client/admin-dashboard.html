@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard | College Voting System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', sans-serif; }
+    body { background: #070d1a; color: white; }
+    .sidebar { background: rgba(10,17,30,0.98); border-right: 1px solid rgba(255,255,255,0.07); }
+    .nav-item { transition: all 0.2s; color: #9ca3af; }
+    .nav-item:hover, .nav-item.active { background: rgba(59,130,246,0.1); color: #60a5fa; border-radius: 10px; }
+    .nav-item.active { border-left: 3px solid #3b82f6; }
+    .card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+    .stat-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: all 0.3s; }
+    .stat-card:hover { border-color: rgba(59,130,246,0.4); transform: translateY(-2px); }
+    .input-field { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); color: white; }
+    .input-field:focus { outline: none; border-color: #3b82f6; }
+    .input-field::placeholder { color: rgba(255,255,255,0.35); }
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); transition: all 0.3s; }
+    .btn-primary:hover { background: linear-gradient(135deg, #2563eb, #1e40af); }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); transition: all 0.3s; }
+    .btn-danger:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+    .btn-success { background: linear-gradient(135deg, #10b981, #059669); transition: all 0.3s; }
+    .btn-success:hover { background: linear-gradient(135deg, #059669, #047857); }
+    .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); transition: all 0.3s; }
+    .toggle-on { background: #3b82f6; }
+    .toggle-off { background: rgba(255,255,255,0.15); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .toast { position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; transform: translateX(120%); transition: transform 0.4s ease; max-width: 350px; }
+    .toast.show { transform: translateX(0); }
+    .toast-success { background: rgba(16,185,129,0.95); color: white; }
+    .toast-error { background: rgba(239,68,68,0.95); color: white; }
+    .toast-info { background: rgba(59,130,246,0.95); color: white; }
+    .badge-active { background: rgba(16,185,129,0.2); color: #86efac; border: 1px solid rgba(16,185,129,0.4); }
+    .badge-inactive { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+    .leader-row { border: 1px solid rgba(251,191,36,0.2); background: rgba(251,191,36,0.05); }
+    select.input-field option { background: #0f172a; }
+    .mobile-overlay { display: none; }
+    @media (max-width: 768px) {
+      .sidebar { position: fixed; left: -280px; top: 0; height: 100vh; width: 240px; z-index: 200; transition: left 0.3s; }
+      .sidebar.open { left: 0; }
+      .mobile-overlay.show { display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 199; }
+    }
+  </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <div id="mobileOverlay" class="mobile-overlay" onclick="closeSidebar()"></div>
+  <div id="toast" class="toast"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar w-60 flex-shrink-0 flex flex-col h-full overflow-y-auto">
+    <div class="px-5 py-6 border-b border-white border-opacity-5">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-purple-700 bg-opacity-30 border border-purple-600 flex items-center justify-center">
+          <i class="fas fa-shield-alt text-purple-400 text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-white font-bold text-base leading-none">Admin Panel</h1>
+          <p class="text-purple-400 text-xs mt-0.5">Election Control</p>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <button onclick="showTab('overview')" class="nav-item active w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium" id="nav-overview">
+        <i class="fas fa-tachometer-alt w-4"></i>Overview
+      </button>
+      <button onclick="showTab('candidates')" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium" id="nav-candidates">
+        <i class="fas fa-users w-4"></i>Candidates
+      </button>
+      <button onclick="showTab('students')" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium" id="nav-students">
+        <i class="fas fa-user-graduate w-4"></i>Students
+      </button>
+      <button onclick="showTab('settings')" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium" id="nav-settings">
+        <i class="fas fa-cog w-4"></i>Settings
+      </button>
+      <button onclick="showTab('results')" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium" id="nav-results">
+        <i class="fas fa-chart-bar w-4"></i>Results
+      </button>
+    </nav>
+
+    <div class="px-3 pb-4 space-y-1 border-t border-white border-opacity-5 pt-3">
+      <a href="results.html" target="_blank" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium block">
+        <i class="fas fa-external-link-alt w-4"></i>Public Results
+      </a>
+      <button onclick="logout()" class="nav-item w-full text-left px-3 py-2.5 flex items-center gap-3 text-sm font-medium text-red-400 hover:text-red-300">
+        <i class="fas fa-sign-out-alt w-4"></i>Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top bar -->
+    <header class="flex-shrink-0 px-6 py-4 border-b border-white border-opacity-5 flex items-center justify-between" style="background: rgba(10,17,30,0.95);">
+      <div class="flex items-center gap-3">
+        <button class="md:hidden text-gray-400 hover:text-white" onclick="openSidebar()">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+        <div>
+          <h2 id="pageTitle" class="text-white font-bold text-lg">Overview</h2>
+          <p class="text-gray-400 text-xs" id="pageSubtitle">Election dashboard & analytics</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="votingStatusBadge" class="badge-inactive text-xs px-3 py-1.5 rounded-full font-semibold">
+          <i class="fas fa-circle text-xs mr-1"></i>Loading...
+        </div>
+        <button onclick="loadDashboard()" class="text-gray-400 hover:text-blue-400 transition-colors" title="Refresh">
+          <i class="fas fa-sync-alt" id="refreshIcon"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- Tab Content Area -->
+    <div class="flex-1 overflow-y-auto p-6">
+
+      <!-- OVERVIEW TAB -->
+      <div id="tab-overview" class="tab-content active space-y-6">
+        <!-- Stat Cards -->
+        <div id="statCards" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        <!-- Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="card rounded-2xl p-5">
+            <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-chart-bar text-blue-400 mr-2"></i>Votes Per Position</h3>
+            <div style="height:260px;"><canvas id="barChart"></canvas></div>
+          </div>
+          <div class="card rounded-2xl p-5">
+            <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-chart-pie text-purple-400 mr-2"></i>Leading Candidates</h3>
+            <div style="height:260px;"><canvas id="pieChart"></canvas></div>
+          </div>
+        </div>
+        <!-- Leaders Table -->
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-crown text-yellow-400 mr-2"></i>Current Leaders</h3>
+          <div id="leadersTable" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- CANDIDATES TAB -->
+      <div id="tab-candidates" class="tab-content space-y-6">
+        <!-- Add Candidate Form -->
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-user-plus text-green-400 mr-2"></i>Add Candidate</h3>
+          <form id="addCandidateForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Full Name *</label>
+              <input type="text" id="cName" placeholder="Candidate name" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Position *</label>
+              <select id="cPosition" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm">
+                <option value="">Select position</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Branch</label>
+              <select id="cBranch" class="input-field w-full px-3 py-2.5 rounded-lg text-sm">
+                <option value="All">All Branches</option>
+                <option value="COMPS">COMPS</option>
+                <option value="IT">IT</option>
+                <option value="Data Engineering">Data Engineering</option>
+                <option value="AIML">AIML</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Description</label>
+              <input type="text" id="cDesc" placeholder="Brief description" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+            </div>
+            <div class="sm:col-span-2 flex justify-end">
+              <button type="submit" class="btn-success px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2">
+                <i class="fas fa-plus"></i>Add Candidate
+              </button>
+            </div>
+          </form>
+        </div>
+        <!-- Candidates List -->
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-list text-blue-400 mr-2"></i>All Candidates</h3>
+          <div id="candidatesList" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- STUDENTS TAB -->
+      <div id="tab-students" class="tab-content space-y-6">
+        <!-- Add Student Form -->
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-user-plus text-green-400 mr-2"></i>Add Student</h3>
+          <form id="addStudentForm" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Student ID *</label>
+              <input type="text" id="sId" placeholder="e.g. AIML001" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Full Name *</label>
+              <input type="text" id="sName" placeholder="Student name" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Branch *</label>
+              <select id="sBranch" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm">
+                <option value="">Select branch</option>
+                <option value="COMPS">COMPS</option>
+                <option value="IT">IT</option>
+                <option value="Data Engineering">Data Engineering</option>
+                <option value="AIML">AIML</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 block mb-1">Password *</label>
+              <input type="text" id="sPass" placeholder="Default password" required class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+            </div>
+            <div class="sm:col-span-2 flex justify-end">
+              <button type="submit" class="btn-primary px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2">
+                <i class="fas fa-user-plus"></i>Add Student
+              </button>
+            </div>
+          </form>
+        </div>
+        <!-- Students List -->
+        <div class="card rounded-2xl p-5">
+          <h3 class="text-sm font-semibold text-gray-300 mb-4"><i class="fas fa-users text-blue-400 mr-2"></i>All Students</h3>
+          <div id="studentsList"></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS TAB -->
+      <div id="tab-settings" class="tab-content space-y-6">
+        <div class="card rounded-2xl p-6">
+          <h3 class="text-sm font-semibold text-gray-300 mb-6"><i class="fas fa-sliders-h text-blue-400 mr-2"></i>Election Settings</h3>
+          <div class="space-y-5">
+            <!-- Voting Toggle -->
+            <div class="flex items-center justify-between py-3 border-b border-white border-opacity-5">
+              <div>
+                <h4 class="text-white font-medium text-sm">Voting Status</h4>
+                <p class="text-gray-400 text-xs mt-0.5">Enable or disable voting for all students</p>
+              </div>
+              <button id="votingToggle" onclick="toggleVoting()" class="toggle-off w-12 h-6 rounded-full transition-all relative">
+                <div id="toggleDot" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 transition-all shadow"></div>
+              </button>
+            </div>
+            <!-- Time Window -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-gray-400 block mb-2">Voting Start Time</label>
+                <input type="datetime-local" id="startTime" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 block mb-2">Voting End Time</label>
+                <input type="datetime-local" id="endTime" class="input-field w-full px-3 py-2.5 rounded-lg text-sm" />
+              </div>
+            </div>
+            <button onclick="saveTimeSettings()" class="btn-primary px-6 py-2.5 rounded-lg text-white text-sm font-semibold flex items-center gap-2">
+              <i class="fas fa-save"></i>Save Time Settings
+            </button>
+            <!-- Danger Zone -->
+            <div class="border border-red-900 border-opacity-50 rounded-xl p-4 mt-6">
+              <h4 class="text-red-400 font-semibold text-sm mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>Danger Zone</h4>
+              <p class="text-gray-400 text-xs mb-4">This will delete all votes and reset vote counts. This action cannot be undone.</p>
+              <button onclick="confirmReset()" class="btn-danger px-5 py-2 rounded-lg text-white text-sm font-semibold flex items-center gap-2">
+                <i class="fas fa-trash-alt"></i>Reset All Votes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULTS TAB -->
+      <div id="tab-results" class="tab-content">
+        <div id="fullResultsContent" class="space-y-4"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+    const token = localStorage.getItem('adminToken');
+    const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#ec4899','#8b5cf6','#06b6d4','#84cc16','#f97316','#a78bfa','#34d399'];
+    let currentSettings = null;
+    let allPositions = [];
+    let barChartInst = null, pieChartInst = null;
+
+    if (!token) window.location.href = 'admin-login.html';
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.className = `toast toast-${type} show`;
+      t.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'info-circle'} mr-2"></i>${msg}`;
+      setTimeout(() => { t.className = 'toast'; }, 3500);
+    }
+
+    function logout() {
+      localStorage.removeItem('adminToken'); localStorage.removeItem('admin');
+      window.location.href = 'admin-login.html';
+    }
+
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.getElementById('mobileOverlay').classList.add('show');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.getElementById('mobileOverlay').classList.remove('show');
+    }
+
+    const tabTitles = {
+      overview: ['Overview', 'Election dashboard & analytics'],
+      candidates: ['Candidates', 'Manage election candidates'],
+      students: ['Students', 'Manage registered voters'],
+      settings: ['Settings', 'Election configuration'],
+      results: ['Full Results', 'Detailed vote breakdown'],
+    };
+
+    function showTab(name) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(`tab-${name}`).classList.add('active');
+      document.getElementById(`nav-${name}`).classList.add('active');
+      const [title, sub] = tabTitles[name];
+      document.getElementById('pageTitle').textContent = title;
+      document.getElementById('pageSubtitle').textContent = sub;
+      closeSidebar();
+      if (name === 'candidates') loadCandidates();
+      if (name === 'students') loadStudents();
+      if (name === 'results') loadFullResults();
+    }
+
+    function authHeaders() {
+      return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+    }
+
+    async function loadDashboard() {
+      document.getElementById('refreshIcon').classList.add('fa-spin');
+      try {
+        const data = await fetch(`${API}/admin/stats`, { headers: authHeaders() }).then(r => r.json());
+        if (!data.success) { logout(); return; }
+        const { stats } = data;
+        currentSettings = stats.settings;
+        updateVotingStatusUI(stats.settings);
+        renderStatCards(stats);
+        renderCharts(stats);
+        renderLeaders(stats.leaders, stats.votesByPosition);
+      } catch { showToast('Failed to load dashboard', 'error'); }
+      document.getElementById('refreshIcon').classList.remove('fa-spin');
+    }
+
+    function updateVotingStatusUI(settings) {
+      if (!settings) return;
+      const badge = document.getElementById('votingStatusBadge');
+      const toggle = document.getElementById('votingToggle');
+      const dot = document.getElementById('toggleDot');
+      if (settings.isVotingActive) {
+        badge.className = 'badge-active text-xs px-3 py-1.5 rounded-full font-semibold';
+        badge.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i>Voting Active';
+        toggle.classList.replace('toggle-off', 'toggle-on');
+        dot.style.left = '26px';
+      } else {
+        badge.className = 'badge-inactive text-xs px-3 py-1.5 rounded-full font-semibold';
+        badge.innerHTML = '<i class="fas fa-circle text-xs mr-1"></i>Voting Closed';
+        toggle.classList.replace('toggle-on', 'toggle-off');
+        dot.style.left = '2px';
+      }
+      if (settings.votingStartTime) {
+        const dt = new Date(settings.votingStartTime);
+        document.getElementById('startTime').value = dt.toISOString().slice(0,16);
+      }
+      if (settings.votingEndTime) {
+        const dt = new Date(settings.votingEndTime);
+        document.getElementById('endTime').value = dt.toISOString().slice(0,16);
+      }
+    }
+
+    function renderStatCards(stats) {
+      const cards = [
+        { icon: 'fa-user-graduate', value: stats.totalStudents, label: 'Total Students', color: 'text-blue-400', bg: 'bg-blue-600' },
+        { icon: 'fa-check-double', value: stats.votedStudents, label: 'Students Voted', color: 'text-green-400', bg: 'bg-green-600' },
+        { icon: 'fa-percent', value: stats.participationRate + '%', label: 'Participation', color: 'text-yellow-400', bg: 'bg-yellow-600' },
+        { icon: 'fa-ballot-check', value: stats.totalVotes, label: 'Total Votes', color: 'text-purple-400', bg: 'bg-purple-600' },
+      ];
+      document.getElementById('statCards').innerHTML = cards.map(c => `
+        <div class="stat-card rounded-xl p-4">
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-9 h-9 ${c.bg} bg-opacity-20 rounded-lg flex items-center justify-center">
+              <i class="fas ${c.icon} ${c.color}"></i>
+            </div>
+          </div>
+          <div class="text-2xl font-bold text-white">${c.value}</div>
+          <div class="text-xs text-gray-400 mt-1">${c.label}</div>
+        </div>`).join('');
+    }
+
+    function renderCharts(stats) {
+      const positions = Object.keys(stats.votesByPosition);
+      allPositions = positions;
+      const barData = positions.map(p => stats.votesByPosition[p].totalVotes);
+      const shortLabels = positions.map(p => p.length > 12 ? p.slice(0,12)+'…' : p);
+
+      if (barChartInst) barChartInst.destroy();
+      barChartInst = new Chart(document.getElementById('barChart'), {
+        type: 'bar',
+        data: {
+          labels: shortLabels,
+          datasets: [{ label: 'Votes', data: barData, backgroundColor: COLORS, borderRadius: 5, borderSkipped: false }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#9ca3af', stepSize: 1 } }
+          }
+        }
+      });
+
+      // Pie: top candidates across all positions
+      const topCandidates = stats.candidates.filter(c => c.votes > 0).slice(0, 8);
+      if (pieChartInst) pieChartInst.destroy();
+      pieChartInst = new Chart(document.getElementById('pieChart'), {
+        type: 'doughnut',
+        data: {
+          labels: topCandidates.map(c => c.name),
+          datasets: [{
+            data: topCandidates.map(c => c.votes),
+            backgroundColor: COLORS.slice(0, topCandidates.length),
+            borderWidth: 2, borderColor: '#070d1a'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { color: '#9ca3af', font: { size: 10 }, boxWidth: 12 } },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} votes` } }
+          }
+        }
+      });
+    }
+
+    function renderLeaders(leaders, votesByPosition) {
+      const rows = Object.entries(leaders).map(([pos, leader]) => {
+        const total = votesByPosition[pos]?.totalVotes || 0;
+        if (!leader) return `<div class="flex items-center justify-between py-2 px-3 rounded-lg bg-white bg-opacity-3">
+          <span class="text-gray-400 text-sm">${pos}</span>
+          <span class="text-gray-600 text-xs">No candidates</span></div>`;
+        return `
+          <div class="leader-row flex items-center justify-between py-2.5 px-4 rounded-lg">
+            <div class="flex items-center gap-3">
+              <i class="fas fa-crown text-yellow-400 text-sm"></i>
+              <div>
+                <span class="text-white text-sm font-medium">${leader.name}</span>
+                <span class="text-gray-500 text-xs ml-2">${pos}</span>
+              </div>
+            </div>
+            <div class="text-right">
+              <span class="text-yellow-300 font-bold text-sm">${leader.votes}</span>
+              <span class="text-gray-500 text-xs ml-1">/ ${total}</span>
+            </div>
+          </div>`;
+      });
+      document.getElementById('leadersTable').innerHTML = rows.join('');
+    }
+
+    async function loadCandidates() {
+      try {
+        const data = await fetch(`${API}/candidates`).then(r => r.json());
+        if (!data.success) return;
+        allPositions = data.positions;
+
+        // Populate position select
+        const sel = document.getElementById('cPosition');
+        sel.innerHTML = '<option value="">Select position</option>' +
+          data.positions.map(p => `<option value="${p}">${p}</option>`).join('');
+
+        // Render candidate rows
+        const grouped = data.grouped;
+        let html = '';
+        for (const pos of data.positions) {
+          const cands = grouped[pos] || [];
+          if (cands.length === 0) continue;
+          html += `<div class="mb-3"><div class="text-xs text-gray-400 font-semibold uppercase tracking-wider mb-2 px-1">${pos}</div>
+            <div class="space-y-1">${cands.map(c => `
+              <div class="flex items-center justify-between bg-white bg-opacity-3 rounded-lg px-4 py-2.5">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white">
+                    ${c.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                  </div>
+                  <div>
+                    <div class="text-sm text-white font-medium">${c.name}</div>
+                    <div class="text-xs text-gray-500">${c.branch} &bull; ${c.votes} votes</div>
+                  </div>
+                </div>
+                <button onclick="deleteCandidate('${c._id}','${c.name.replace(/'/g,"\\'")}') " class="text-red-400 hover:text-red-300 text-sm transition-colors px-2">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>`).join('')}
+            </div></div>`;
+        }
+        document.getElementById('candidatesList').innerHTML = html || '<p class="text-gray-500 text-sm text-center py-6">No candidates added yet.</p>';
+      } catch { showToast('Failed to load candidates', 'error'); }
+    }
+
+    document.getElementById('addCandidateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        name: document.getElementById('cName').value.trim(),
+        position: document.getElementById('cPosition').value,
+        branch: document.getElementById('cBranch').value,
+        description: document.getElementById('cDesc').value.trim(),
+      };
+      try {
+        const data = await fetch(`${API}/candidates`, {
+          method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (data.success) {
+          showToast('Candidate added successfully!');
+          e.target.reset();
+          loadCandidates();
+        } else { showToast(data.message || 'Failed to add candidate', 'error'); }
+      } catch { showToast('Network error', 'error'); }
+    });
+
+    async function deleteCandidate(id, name) {
+      if (!confirm(`Delete candidate "${name}"?`)) return;
+      try {
+        const data = await fetch(`${API}/candidates/${id}`, {
+          method: 'DELETE', headers: authHeaders()
+        }).then(r => r.json());
+        if (data.success) { showToast('Candidate deleted'); loadCandidates(); }
+        else showToast(data.message, 'error');
+      } catch { showToast('Network error', 'error'); }
+    }
+
+    async function loadStudents() {
+      try {
+        const data = await fetch(`${API}/admin/students`, { headers: authHeaders() }).then(r => r.json());
+        if (!data.success) return;
+        const rows = data.students.map(s => `
+          <div class="flex items-center justify-between bg-white bg-opacity-3 rounded-lg px-4 py-2.5">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-blue-700 bg-opacity-40 flex items-center justify-center text-blue-300 text-xs font-bold">
+                ${s.name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+              </div>
+              <div>
+                <div class="text-sm text-white font-medium">${s.name}</div>
+                <div class="text-xs text-gray-500">${s.studentId} &bull; ${s.branch}</div>
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs ${s.votedPositions.length > 0 ? 'text-green-400' : 'text-gray-500'}">${s.votedPositions.length} voted</div>
+            </div>
+          </div>`).join('');
+        document.getElementById('studentsList').innerHTML = rows || '<p class="text-gray-500 text-sm text-center py-6">No students found.</p>';
+      } catch { showToast('Failed to load students', 'error'); }
+    }
+
+    document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = {
+        studentId: document.getElementById('sId').value.trim(),
+        name: document.getElementById('sName').value.trim(),
+        branch: document.getElementById('sBranch').value,
+        password: document.getElementById('sPass').value,
+      };
+      try {
+        const data = await fetch(`${API}/admin/students`, {
+          method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (data.success) { showToast('Student added!'); e.target.reset(); loadStudents(); }
+        else showToast(data.message || 'Failed', 'error');
+      } catch { showToast('Network error', 'error'); }
+    });
+
+    async function toggleVoting() {
+      if (!currentSettings) return;
+      const newState = !currentSettings.isVotingActive;
+      try {
+        const data = await fetch(`${API}/admin/settings`, {
+          method: 'PUT', headers: authHeaders(),
+          body: JSON.stringify({ isVotingActive: newState })
+        }).then(r => r.json());
+        if (data.success) {
+          currentSettings.isVotingActive = newState;
+          updateVotingStatusUI(currentSettings);
+          showToast(`Voting ${newState ? 'enabled' : 'disabled'}`);
+        } else showToast(data.message, 'error');
+      } catch { showToast('Network error', 'error'); }
+    }
+
+    async function saveTimeSettings() {
+      const start = document.getElementById('startTime').value;
+      const end = document.getElementById('endTime').value;
+      try {
+        const data = await fetch(`${API}/admin/settings`, {
+          method: 'PUT', headers: authHeaders(),
+          body: JSON.stringify({ votingStartTime: start, votingEndTime: end })
+        }).then(r => r.json());
+        if (data.success) showToast('Time settings saved!');
+        else showToast(data.message, 'error');
+      } catch { showToast('Network error', 'error'); }
+    }
+
+    async function confirmReset() {
+      if (!confirm('⚠️ This will permanently delete ALL votes and reset all vote counts. Are you sure?')) return;
+      if (!confirm('Last confirmation: Are you absolutely sure you want to reset all votes?')) return;
+      try {
+        const data = await fetch(`${API}/admin/reset-votes`, {
+          method: 'POST', headers: authHeaders()
+        }).then(r => r.json());
+        if (data.success) { showToast('All votes reset successfully'); loadDashboard(); }
+        else showToast(data.message, 'error');
+      } catch { showToast('Network error', 'error'); }
+    }
+
+    async function loadFullResults() {
+      try {
+        const data = await fetch(`${API}/votes/results`).then(r => r.json());
+        if (!data.success) return;
+        const candidates = data.candidates;
+        const positions = [...new Set(candidates.map(c => c.position))];
+        const html = positions.map(pos => {
+          const cands = candidates.filter(c => c.position === pos).sort((a,b) => b.votes - a.votes);
+          const total = cands.reduce((a,c)=>a+c.votes,0);
+          return `<div class="card rounded-xl p-4">
+            <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <i class="fas fa-user-tie text-blue-400"></i>${pos}
+              <span class="text-gray-500 text-xs font-normal">(${total} votes)</span>
+            </h3>
+            ${cands.map((c,i) => {
+              const pct = total > 0 ? ((c.votes/total)*100).toFixed(1) : 0;
+              return `<div class="flex items-center gap-3 mb-2">
+                ${i===0 && c.votes>0 ? '<i class="fas fa-crown text-yellow-400 text-xs w-4"></i>' : '<span class="w-4 text-gray-600 text-xs text-center">'+(i+1)+'</span>'}
+                <span class="text-gray-300 text-sm flex-1 truncate">${c.name}</span>
+                <div class="w-28 bg-white bg-opacity-8 rounded-full h-1.5 mx-2">
+                  <div class="h-1.5 rounded-full" style="width:${pct}%;background:${COLORS[i%COLORS.length]}"></div>
+                </div>
+                <span class="text-xs text-gray-400 w-16 text-right">${c.votes} (${pct}%)</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        }).join('');
+        document.getElementById('fullResultsContent').innerHTML = html;
+      } catch { showToast('Failed to load results', 'error'); }
+    }
+
+    loadDashboard();
+    // Auto-refresh overview
+    setInterval(() => {
+      const activeTab = document.querySelector('.tab-content.active');
+      if (activeTab && activeTab.id === 'tab-overview') loadDashboard();
+    }, 30000);
+  </script>
+</body>
+</html>
